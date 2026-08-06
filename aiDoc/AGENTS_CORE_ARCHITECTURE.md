@@ -1,5 +1,7 @@
 # AGENTS 核心架构设计文档
 
+> 文档定位:本文是基于公开资料整理的编码 Agent 架构研究,不代表 androidAndroid 当前实现状态。
+
 本文是一份面向 Harness Engineer 的中文架构文档，用于说明成熟编码 Agent 的核心结构、主要功能和可复用实现方式。它不是 `AGENTS.md` 文件格式说明，而是从公开源码与公开文档中抽象出的编码 Agent / Agent Harness 工程设计指南。
 
 ## 1. 资料边界

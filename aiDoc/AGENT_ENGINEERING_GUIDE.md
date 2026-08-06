@@ -1,5 +1,7 @@
 # Agent 工程化设计指南
 
+> 文档定位:本文是通用 Agent Harness 工程参考,不代表 androidAndroid 当前已经实现其中全部模块。
+
 本文面向 Harness Engineer 与未来参与编码 Agent 建设的人。它既回答“Agent 是什么”，也把 Claude Code、Codex 这类成熟编码 Agent 暴露出的工程结构抽象成可落地的设计规范。
 
 ## 1. 基本定义
