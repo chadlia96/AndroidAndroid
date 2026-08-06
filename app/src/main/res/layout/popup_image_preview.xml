@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_image_preview_bubble"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/imageViewPreview"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:contentDescription="@string/image_preview"
+        android:scaleType="centerCrop" />
+</FrameLayout>

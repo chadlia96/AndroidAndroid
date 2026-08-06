@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_floating_overlay"
+    android:alpha="0.6"
+    android:layout_marginStart="30dp"
+    android:layout_marginTop="20dp"
+    android:padding="3dp">
+
+    <ProgressBar
+        android:id="@+id/tvOverlayLoading"
+        style="?android:attr/progressBarStyleSmall"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:indeterminate="true"
+        android:indeterminateTint="#F2FFFFFF"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvOverlayTitle"
+        android:layout_width="110dp"
+        android:layout_height="wrap_content"
+        android:clickable="false"
+        android:focusable="false"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="5dp"
+        android:text="@string/floating_overlay_title"
+        android:textColor="#F2FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@id/tvOverlayLoading"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="123123123123" />
+
+    <TextView
+        android:id="@+id/tvOverlayLog"
+        android:layout_width="110dp"
+        android:layout_height="wrap_content"
+        android:maxHeight="220dp"
+        android:layout_marginTop="12dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:padding="8dp"
+        android:text="@string/floating_overlay_log_hint"
+        android:textColor="#CCFFFFFF"
+        android:textIsSelectable="false"
+        android:textSize="11sp"
+        android:typeface="monospace"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvOverlayTitle" />
+</androidx.constraintlayout.widget.ConstraintLayout>

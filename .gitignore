@@ -1,0 +1,15 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+/app/src/main/assets/llm_config.properties
+/llm_config.json
+.externalNativeBuild
+.cxx
+/.kotlin
+/.codegraph
+/.reasonix
+local.properties
