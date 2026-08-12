@@ -1,7 +1,6 @@
 package com.android.androidAndroid.agent
 
 import com.android.androidAndroid.agent.model.AgentAction
-import com.android.androidAndroid.agent.model.AgentAction.Click
 import com.android.androidAndroid.agent.model.AgentDecision
 import com.android.androidAndroid.agent.model.Position
 import com.squareup.moshi.Moshi

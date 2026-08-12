@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
 import com.android.androidAndroid.R
 import com.android.androidAndroid.databinding.FragmentHomeBinding
+import com.android.androidAndroid.junk.SystemTimeUtil
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.

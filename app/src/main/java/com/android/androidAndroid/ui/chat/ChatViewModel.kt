@@ -73,7 +73,7 @@ class ChatViewModel : ViewModel() {
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val result = if (imageUri != null) {
-                LLMChat.moonshotReadImage(context, imageUri, "请形容图片内容")
+                LLMChat.moonshotReadImage(context, imageUri, message.trim().ifBlank{ "请形容图片内容" })
             } else {
                 LLMChat.deepseekChat(message, false)
             }

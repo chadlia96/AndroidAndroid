@@ -24,6 +24,7 @@
     <string name="service_not_ready">无障碍服务未运行，请先开启</string>
     <string name="agent_mode">模式一:执行任务</string>
     <string name="just_talk_mode">模式二:纯对话</string>
+    <string name="correct_system_time">矫正系统时间</string>
 
     <string name="lorem_ipsum">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris

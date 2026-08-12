@@ -8,7 +8,6 @@
 
 package com.android.androidAndroid.agent.model
 
-import com.android.androidAndroid.agent.model.Position
 
 sealed class AgentAction(
     val op: String

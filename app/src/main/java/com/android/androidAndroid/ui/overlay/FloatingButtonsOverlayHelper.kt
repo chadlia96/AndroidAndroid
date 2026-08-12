@@ -1,6 +1,7 @@
 package com.android.androidAndroid.ui.overlay
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
@@ -10,6 +11,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import com.android.androidAndroid.MainActivity
 import com.android.androidAndroid.databinding.LayoutFloatingButtonsOverlayBinding
 import java.lang.ref.WeakReference
 
@@ -25,6 +27,13 @@ object FloatingButtonsOverlayHelper {
     fun init(context: Context) {
         if (contextRef?.get() != null) return
         contextRef = WeakReference(context.applicationContext)
+        click3 = View.OnClickListener {
+            contextRef?.get()?.startActivity(
+                Intent(contextRef?.get(), MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                }
+            )
+        }
     }
 
     fun show(tag: String = TAG): Boolean {
