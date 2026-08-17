@@ -49,6 +49,7 @@ object AgentResponseParser {
                 }
                 "launch_app" -> AgentAction.LaunchApp
                 "back" -> AgentAction.Back
+                "describe_ui" -> AgentAction.DescribeUi
                 else -> null
             }
         }

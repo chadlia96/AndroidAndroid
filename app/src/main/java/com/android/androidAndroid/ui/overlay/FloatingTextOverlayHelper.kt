@@ -6,7 +6,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -94,6 +94,10 @@ object FloatingTextOverlayHelper {
     }
 
     fun isShowing(): Boolean = binding != null
+
+    fun setCaptureVisible(visible: Boolean) {
+        binding?.root?.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+    }
 
     fun release(): Boolean {
         val currentBinding = binding

@@ -3,7 +3,7 @@ package com.android.androidAndroid.llm
 import android.content.Context
 import android.net.Uri
 import android.util.Base64
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import com.android.androidAndroid.BuildConfig
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.JsonValue
@@ -67,11 +67,26 @@ object LLMChat {
     }
 
     suspend fun moonshotReadImage(context: Context, uri: Uri, prompt: String): String {
-        Log.d(LLM_TRACE_TAG, "MOONSHOT_IMAGE_PROMPT:\n$prompt")
         return try {
             val mimeType = context.contentResolver.getType(uri)?.takeIf { it.isNotBlank() } ?: "image/png"
             val imageBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: error("无法读取图片内容.")
+            moonshotReadImage(imageBytes, mimeType, prompt)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            handleError("Moonshot 图片识别", error)
+        }
+    }
+
+    suspend fun moonshotReadImage(
+        imageBytes: ByteArray,
+        mimeType: String,
+        prompt: String
+    ): String {
+        Log.d(LLM_TRACE_TAG, "MOONSHOT_IMAGE_PROMPT:\n$prompt")
+        return try {
+            require(imageBytes.isNotEmpty()) { "图片内容为空." }
             val imageUrl = "data:$mimeType;base64,${Base64.encodeToString(imageBytes, Base64.NO_WRAP)}"
             val imagePart = ChatCompletionContentPart.ofImageUrl(
                 ChatCompletionContentPartImage.builder()

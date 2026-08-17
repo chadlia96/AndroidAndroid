@@ -1,7 +1,7 @@
 package com.android.androidAndroid.accessibility
 
 import android.graphics.Rect
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.android.androidAndroid.accessibility.model.ButtonScreenNode
 import com.android.androidAndroid.accessibility.model.CheckBoxScreenNode
@@ -168,6 +168,7 @@ object AccessibilityNodeMapper {
             node.childCount == 0 -> TextScreenNode(
                 message = firstNonBlank(text, description) ?: className,
                 className = className,
+                clickable = AccessibilityNodeResolver.isClickableForSummary(node),
                 bounds = bounds
             )
 

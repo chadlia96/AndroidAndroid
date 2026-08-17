@@ -1,12 +1,14 @@
 package com.android.androidAndroid
 
 import android.app.Application
+import com.android.androidAndroid.logging.AppLogger
 
 class androidAndroidApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+        AppLogger.init(this)
     }
 
     override fun onTerminate() {

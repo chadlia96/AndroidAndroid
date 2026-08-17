@@ -93,6 +93,17 @@ class AgentResponseParserTest {
     }
 
     @Test
+    fun parse_describeUiAction() {
+        val json = """{"status": "running", "actions": [{"op": "describe_ui"}]}"""
+
+        val result = AgentResponseParser.parse(json)
+
+        assertNotNull(result)
+        assertEquals(1, result!!.agentActions.size)
+        assertEquals(AgentAction.DescribeUi, result.agentActions[0])
+    }
+
+    @Test
     fun parse_codeFencedJson() {
         val json = """
             ```json

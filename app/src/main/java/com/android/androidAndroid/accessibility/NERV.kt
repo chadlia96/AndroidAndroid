@@ -1,7 +1,7 @@
 package com.android.androidAndroid.accessibility
 
 import android.accessibilityservice.AccessibilityService
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import android.view.accessibility.AccessibilityEvent
 import com.android.androidAndroid.agent.AgentLoop
 import com.android.androidAndroid.agent.TaskWatcher

@@ -5,7 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Path
 import android.os.Bundle
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.android.androidAndroid.BuildConfig
 import com.android.androidAndroid.accessibility.monitor.NodeOperateHelper
@@ -29,6 +29,7 @@ object AccessibilityActionExecutor {
             is AgentAction.Swipe -> executeSwipe(agentAction)
             AgentAction.Back -> executeBack()
             AgentAction.LaunchApp -> executeLaunchApp(goal)
+            AgentAction.DescribeUi -> NodeActionExecutionResult(false, "UI视觉探测应由 AgentLoop 执行")
         }
     }
 

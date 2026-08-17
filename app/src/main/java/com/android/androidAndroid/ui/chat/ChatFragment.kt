@@ -22,6 +22,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.android.androidAndroid.R
 import com.android.androidAndroid.accessibility.NERV
+import com.android.androidAndroid.agent.AgentLoop
 import com.android.androidAndroid.databinding.FragmentChatBinding
 
 /**
@@ -92,6 +93,9 @@ class ChatFragment : Fragment() {
         }
         observeViewModel()
         setupImagePickerButton()
+        binding.buttonCancel.setOnClickListener {
+            AgentLoop.clear()
+        }
     }
 
     override fun onResume() {

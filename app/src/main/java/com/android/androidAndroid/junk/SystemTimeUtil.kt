@@ -6,7 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.provider.Settings
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress

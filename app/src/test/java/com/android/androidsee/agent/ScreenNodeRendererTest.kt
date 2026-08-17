@@ -40,11 +40,11 @@ class ScreenNodeRendererTest {
 
         val lines = ScreenStatRenderer.render(nodes).lines()
 
-        assertEquals("1 | Text | A | 左上 | 小 | ?", lines[0])
-        assertEquals("2 | Text | B | 中部 | 小 | ?", lines[1])
-        assertEquals("3 | Text | C | 右下 | 小 | ?", lines[2])
-        assertTrue(lines[3].contains(" | 中 | ?"))
-        assertTrue(lines[4].contains(" | 大 | ?"))
+        assertEquals("1 | Text | A | 左上 | 小 | -", lines[0])
+        assertEquals("2 | Text | B | 中部 | 小 | -", lines[1])
+        assertEquals("3 | Text | C | 右下 | 小 | -", lines[2])
+        assertTrue(lines[3].contains(" | 中 | -"))
+        assertTrue(lines[4].contains(" | 大 | -"))
     }
 
     @Test
@@ -59,7 +59,7 @@ class ScreenNodeRendererTest {
         val lines = ScreenStatRenderer.render(nodes).lines()
 
         assertEquals("1 | Button | 添加 用户 ｜, 补充 内容 | ? | ? | 点击,长按", lines[0])
-        assertEquals("2 | Text | - | 左上 | ? | ?", lines[1])
+        assertEquals("2 | Text | - | 左上 | ? | -", lines[1])
         assertEquals(80, lines[2].split(" | ")[2].length)
         assertTrue(lines[2].split(" | ")[2].endsWith("…"))
         lines.forEach { assertEquals(6, it.split(" | ").size) }
@@ -78,14 +78,14 @@ class ScreenNodeRendererTest {
             SeekBarScreenNode("", clickable = true),
             WebScreenNode(""),
             ContainerScreenNode("", clickable = false, longClickable = true),
-            TextScreenNode(""),
+            TextScreenNode("", clickable = true),
             UnknownScreenNode(""),
         )
 
         val columns = ScreenStatRenderer.render(nodes).lines().map { it.split(" | ") }
 
         assertEquals(listOf("Button", "Input", "Image", "List", "CheckBox", "Switch", "Radio", "Slider", "Web", "Container", "Text", "Unknown"), columns.map { it[1] })
-        assertEquals(listOf("-", "点击,输入", "点击", "滚动", "点击,勾选", "勾选", "-", "点击", "?", "长按", "?", "?"), columns.map { it[5] })
+        assertEquals(listOf("-", "点击,输入", "点击", "滚动", "点击,勾选", "勾选", "-", "点击", "?", "长按", "点击", "?"), columns.map { it[5] })
     }
 
     @Test
@@ -98,6 +98,6 @@ class ScreenNodeRendererTest {
             listOf(TextScreenNode("内容", bounds = ScreenBounds(720, 1280, 900, 900)))
         )
 
-        assertEquals("1 | Text | 内容 | 右下 | 大 | ?", result)
+        assertEquals("1 | Text | 内容 | 右下 | 大 | -", result)
     }
 }

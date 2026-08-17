@@ -1,6 +1,6 @@
 package com.android.androidAndroid.accessibility.monitor
 
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.android.androidAndroid.accessibility.NERV

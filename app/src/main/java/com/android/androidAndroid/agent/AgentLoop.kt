@@ -1,6 +1,6 @@
 package com.android.androidAndroid.agent
 
-import android.util.Log
+import com.android.androidAndroid.logging.AppLogger as Log
 import com.android.androidAndroid.agent.model.AgentAction
 import com.android.androidAndroid.agent.model.ActionExecutionResult
 import com.android.androidAndroid.accessibility.model.ScreenNode
@@ -9,6 +9,7 @@ import com.android.androidAndroid.ui.overlay.FloatingTextOverlayHelper
 import com.android.androidAndroid.accessibility.AccessibilityActionExecutor
 import com.android.androidAndroid.accessibility.monitor.NodeOperateHelper
 import com.android.androidAndroid.agent.model.AgentDecision
+import com.android.androidAndroid.agent.action.describeUi.UiDescriptionExecutor
 import com.android.androidAndroid.agent.prompt.AgentPromptBuilder
 import com.android.androidAndroid.agent.prompt.ScreenStatRenderer
 import com.android.androidAndroid.llm.LLMChat
@@ -45,6 +46,16 @@ object AgentLoop {
         return run(currentSession)
     }
 
+    fun clear() {
+        session?.let {
+            it.status = AgentSessionStatus.CANCELLED
+            it.updatedAt = System.currentTimeMillis()
+            it.finishedAt = it.updatedAt
+            clearManualNextRoundClick(it)
+        }
+        session = null
+    }
+
     private suspend fun run(session: AgentSession): AgentSession {
         if (session.status == AgentSessionStatus.SUCCEEDED ||
             session.status == AgentSessionStatus.FAILED ||
@@ -58,7 +69,7 @@ object AgentLoop {
 
         session.status = AgentSessionStatus.RUNNING
         session.updatedAt = System.currentTimeMillis()
-        Log.i(LLM_TRACE_TAG, "AGENT_LOOP_START: goal=${session.goal}")
+        Log.i(LLM_TRACE_TAG, "AGENT_LOOP_START: goalChars=${session.goal.length}")
 
         try {
             while (session.status == AgentSessionStatus.RUNNING && session.turnCount < session.maxTurns) {
@@ -96,7 +107,9 @@ object AgentLoop {
                     break
                 }
                 // 等待界面稳定(连续 2 秒无变化)后再进入下一轮
-                waitForUiSettle()
+                if (loopContext.agentActions.lastOrNull() != AgentAction.DescribeUi) {
+                    waitForUiSettle()
+                }
             }
 
             // 预算停止: 超过最大轮次仍未成功,视为失败并记录停止原因。
@@ -163,7 +176,7 @@ object AgentLoop {
             context.session.metadata["last_raw_response"] = rawResponse.take(500)
             Log.w(
                 LLM_TRACE_TAG,
-                "PARSE_FAILED(count=${context.parseFailures}/$PARSE_FAILURE_LIMIT, raw=${rawResponse.take(120)})"
+                "PARSE_FAILED(count=${context.parseFailures}/$PARSE_FAILURE_LIMIT, rawChars=${rawResponse.length})"
             )
             if (context.parseFailures >= PARSE_FAILURE_LIMIT) {
                 failSession(context.session, "parse_failure_limit", "LLM响应解析失败次数过多")
@@ -175,7 +188,10 @@ object AgentLoop {
 
         context.session.metadata["last_reason"] = context.response?.reason.orEmpty()
         if (context.response?.status == "success") {
-            Log.i(LLM_TRACE_TAG, "SESSION_SUCCESS_BY_MODEL(reason=${context.response?.reason.orEmpty()})")
+            Log.i(
+                LLM_TRACE_TAG,
+                "SESSION_SUCCESS_BY_MODEL(reasonChars=${context.response?.reason.orEmpty().length})"
+            )
             TaskWatcher.onSuccess()
             markSucceeded(context.session)
             return false
@@ -208,7 +224,11 @@ object AgentLoop {
 
             val result = executeAction(action, context.session, context.currentState)
             context.session.actionExecutionResults.add(result)
-            Log.i(LLM_TRACE_TAG, "ACTION_RESULT(turn=${context.session.turnCount}): $result")
+            Log.i(
+                LLM_TRACE_TAG,
+                "ACTION_RESULT(turn=${context.session.turnCount}, " +
+                    "action=${action.javaClass.simpleName}, success=${result.success})"
+            )
 
             if (action == AgentAction.LaunchApp) break
             if (context.session.turnCount >= context.session.maxTurns) break
@@ -283,20 +303,26 @@ object AgentLoop {
         session: AgentSession,
         currentState: List<ScreenNode>
     ): ActionExecutionResult {
+        if (agentAction == AgentAction.DescribeUi) {
+            return UiDescriptionExecutor.execute()
+        }
         val targetNode = when (agentAction) {
             is AgentAction.Click -> currentState.getOrNull(agentAction.target - 1)
             is AgentAction.Input -> currentState.getOrNull(agentAction.target - 1)
-            is AgentAction.Swipe, is AgentAction.LaunchApp, AgentAction.Back -> null
+            is AgentAction.Swipe, is AgentAction.LaunchApp, AgentAction.Back,
+            AgentAction.DescribeUi -> null
         }
         val executionResult = AccessibilityActionExecutor.execute(agentAction, targetNode, session.goal)
         Log.i(
             LLM_TRACE_TAG,
-            "EXECUTE_ACTION(turn=${session.turnCount}, success=${executionResult.success}): ${executionResult.message}"
+            "EXECUTE_ACTION(turn=${session.turnCount}, action=${agentAction.javaClass.simpleName}, " +
+                "success=${executionResult.success})"
         )
         val target = when (agentAction) {
             is AgentAction.Click, is AgentAction.Input -> targetNode?.message.orEmpty()
             is AgentAction.Swipe, AgentAction.Back -> ""
             AgentAction.LaunchApp -> executionResult.target
+            AgentAction.DescribeUi -> ""
         }
         return ActionExecutionResult(
             agentAction = agentAction,

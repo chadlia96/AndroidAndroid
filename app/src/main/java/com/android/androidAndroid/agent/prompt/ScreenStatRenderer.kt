@@ -117,7 +117,8 @@ object ScreenStatRenderer {
             is RadioButtonScreenNode -> buildCapabilities(node.clickable, checkable = node.checkable)
             is SeekBarScreenNode -> buildCapabilities(node.clickable)
             is ContainerScreenNode -> buildCapabilities(node.clickable, node.longClickable)
-            is TextScreenNode, is WebScreenNode, is UnknownScreenNode -> return "?"
+            is TextScreenNode -> buildCapabilities(node.clickable)
+            is WebScreenNode, is UnknownScreenNode -> return "?"
         }
         return capabilities.ifEmpty { "-" }
     }

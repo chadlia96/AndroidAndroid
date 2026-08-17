@@ -1,9 +1,9 @@
 /*
-## 重要提示
-添加 Action 子类后,请根据动作来源和用途同步检查:
-1. JsonDescription() 中的 op 列表和动作字段说明.
-2. AgentResponse.kt 中 RawAction 的字段、JSON 字段读取和 toAction() 转换分支.
-3. AgentLoop.kt 中 executeAction() 的目标节点解析、ActionResult.target 生成和实际执行逻辑.
+LLM 修改指南: 新增或修改 Action 时,同步更新:
+1. 本文件的 AgentAction 子类和 JsonDescription().
+2. AgentResponseParser.kt 的 RawAction、JSON 字段读取和 toAction().
+3. AgentLoop.kt 的目标节点与结果 target 分支.
+4. AccessibilityActionExecutor.kt 的执行分支,以及相关解析和执行测试.
 */
 
 package com.android.androidAndroid.agent.model
@@ -39,13 +39,17 @@ sealed class AgentAction(
     data object Back : AgentAction("back") {
         override fun toString(): String = "返回上一页"
     }
+
+    data object DescribeUi : AgentAction("describe_ui") {
+        override fun toString(): String = "描述当前界面"
+    }
 }
 
 fun JsonDescription(): String{
     return """
 "actions": [
   {
-    "op": "click | input | swipe | launch_app | back",
+    "op": "click | input | swipe | launch_app | back | describe_ui",
     "target": 2, //可选,操作对象的id
     "text": "Sample Text", //可选,仅 input 使用
     "startPoint": "30-50", //可选,仅 swipe 使用,滑动起点坐标
