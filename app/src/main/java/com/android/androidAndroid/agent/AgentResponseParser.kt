@@ -49,13 +49,13 @@ object AgentResponseParser {
                 }
                 "launch_app" -> AgentAction.LaunchApp
                 "back" -> AgentAction.Back
-                "describe_ui" -> AgentAction.DescribeUi
+                "think_with_vision" -> AgentAction.ThinkWithVision
                 else -> null
             }
         }
     }
 
-    fun parse(raw: String): AgentDecision? {
+    fun parse(raw: String, allowThinkWithVision: Boolean = true): AgentDecision? {
         val cleaned = stripCodeFence(raw)
         return runCatching {
             val root = mapAdapter.fromJson(cleaned) ?: return null
@@ -78,6 +78,7 @@ object AgentResponseParser {
                 )
                 rawAction.toAction()
             }
+            if (!allowThinkWithVision && AgentAction.ThinkWithVision in actions) return null
             AgentDecision(status = status, agentActions = actions, reason = reason, rawResponse = rawRes)
         }.getOrNull()
     }

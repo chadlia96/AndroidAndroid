@@ -9,11 +9,12 @@ import com.android.androidAndroid.ui.overlay.FloatingTextOverlayHelper
 import com.android.androidAndroid.accessibility.AccessibilityActionExecutor
 import com.android.androidAndroid.accessibility.monitor.NodeOperateHelper
 import com.android.androidAndroid.agent.model.AgentDecision
-import com.android.androidAndroid.agent.action.describeUi.UiDescriptionExecutor
+import com.android.androidAndroid.agent.action.vision.ScreenCapture
 import com.android.androidAndroid.agent.prompt.AgentPromptBuilder
 import com.android.androidAndroid.agent.prompt.ScreenStatRenderer
 import com.android.androidAndroid.llm.LLMChat
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 
 object AgentLoop {
 
@@ -22,7 +23,8 @@ object AgentLoop {
     private const val PARSE_FAILURE_LIMIT = 3
     private const val EXEC_FAILURE_LIMIT = 3
     private const val ROUND_DELAY_MS = 700L
-    private const val UI_STABLE_MS = 2_000L
+    private const val UI_MIN_WAIT_MS = 1_500L
+    private const val UI_STABLE_MS = 1_500L
     private const val UI_STABLE_MAX_WAIT_MS = 15_000L
     private const val UI_STABLE_POLL_MS = 100L
     private const val MANUAL_NEXT_ROUND_POLL_MS = 100L
@@ -106,8 +108,8 @@ object AgentLoop {
                 if (session.status != AgentSessionStatus.RUNNING) {
                     break
                 }
-                // 等待界面稳定(连续 2 秒无变化)后再进入下一轮
-                if (loopContext.agentActions.lastOrNull() != AgentAction.DescribeUi) {
+                // 动作后至少等待 3 秒,且界面连续 2 秒无变化后再进入下一轮.
+                if (loopContext.agentActions.lastOrNull() != AgentAction.ThinkWithVision) {
                     waitForUiSettle()
                 }
             }
@@ -144,8 +146,7 @@ object AgentLoop {
         }
 
         if (context.currentState.isEmpty() && context.stateDescription.isBlank()) {
-            failSession(context.session, "observe_empty_state", "当前界面为空")
-            return false
+            context.stateDescription = "当前无可用节点摘要,可请求视觉信息判断界面."
         }
         Log.i(
             LLM_TRACE_TAG,
@@ -155,16 +156,37 @@ object AgentLoop {
     }
 
     private suspend fun makeDecision(context: LoopContext): Boolean {
+        var imageBytes: ByteArray? = null
+        var visionStatus = "本轮未提供截图."
+        if (context.requestVision) {
+            // 一次视觉请求只截图并发送一次,解析重试也不能连续请求视觉信息.
+            context.requestVision = false
+            context.allowThinkWithVision = false
+            try {
+                imageBytes = ScreenCapture.capture()
+                visionStatus = "本轮已附带当前屏幕截图,请结合当前节点摘要直接决策."
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                visionStatus = "屏幕截图失败: ${error.message.orEmpty()}. 本轮没有图片,请勿臆测视觉内容."
+                context.session.actionExecutionResults.add(
+                    ActionExecutionResult(AgentAction.ThinkWithVision, "", false, visionStatus)
+                )
+                Log.w(LLM_TRACE_TAG, visionStatus)
+            }
+        }
         val prompt = AgentPromptBuilder.buildFinalPrompt(
             context.session,
             context.stateDescription,
             context.appDescription,
-            context.toastDescription
+            context.toastDescription,
+            visionStatus,
+            context.allowThinkWithVision
         )
         TaskWatcher.onLLMRequest()
-        val rawResponse = queryRawResponse(prompt)
+        val rawResponse = queryRawResponse(prompt, imageBytes)
         TaskWatcher.onLLMResponse(rawResponse)
-        context.response = parseResponse(rawResponse)
+        context.response = AgentResponseParser.parse(rawResponse, context.allowThinkWithVision)
         context.session.messages.add(rawResponse)
         Log.i(
             LLM_TRACE_TAG,
@@ -187,6 +209,12 @@ object AgentLoop {
         }
 
         context.session.metadata["last_reason"] = context.response?.reason.orEmpty()
+        if (!context.response?.reason.isNullOrBlank() && imageBytes != null) {
+            context.session.actionExecutionResults.add(
+                ActionExecutionResult(AgentAction.ThinkWithVision, "", true,
+                    "视觉决策结论: ${context.response?.reason.orEmpty()}")
+            )
+        }
         if (context.response?.status == "success") {
             Log.i(
                 LLM_TRACE_TAG,
@@ -222,7 +250,13 @@ object AgentLoop {
             context.session.turnCount += 1
             context.session.updatedAt = System.currentTimeMillis()
 
-            val result = executeAction(action, context.session, context.currentState)
+            val result = if (action == AgentAction.ThinkWithVision) {
+                context.requestVision = true
+                ActionExecutionResult(action, "", true, "已请求下一轮携带当前截图进行决策")
+            } else {
+                context.allowThinkWithVision = true
+                executeAction(action, context.session, context.currentState)
+            }
             context.session.actionExecutionResults.add(result)
             Log.i(
                 LLM_TRACE_TAG,
@@ -236,11 +270,13 @@ object AgentLoop {
     }
 
     private suspend fun waitForUiSettle() {
-        // 动作执行后等待界面稳定: 重置时间戳后轮询,界面连续 UI_STABLE_MS 无变化则视为操作结束
+        // 先给应用预留响应时间,再结合无障碍事件判断稳定,避免加载尚未开始就继续操作.
         NodeOperateHelper.markUiChanged()
-        val deadline = System.currentTimeMillis() + UI_STABLE_MAX_WAIT_MS
+        val startedAt = System.currentTimeMillis()
+        val deadline = startedAt + UI_STABLE_MAX_WAIT_MS
         while (System.currentTimeMillis() < deadline) {
-            if (NodeOperateHelper.isUiStable(UI_STABLE_MS)) return
+            if (System.currentTimeMillis() - startedAt >= UI_MIN_WAIT_MS &&
+                NodeOperateHelper.isUiStable(UI_STABLE_MS)) return
             delay(UI_STABLE_POLL_MS)
         }
     }
@@ -253,20 +289,18 @@ object AgentLoop {
         var appDescription: String = "",
         var toastDescription: String = "",
         var response: AgentDecision? = null,
-        var agentActions: List<AgentAction> = emptyList()
+        var agentActions: List<AgentAction> = emptyList(),
+        var requestVision: Boolean = false,
+        var allowThinkWithVision: Boolean = true
     )
 
-    private suspend fun queryRawResponse(prompt: String): String {
+    private suspend fun queryRawResponse(prompt: String, imageBytes: ByteArray? = null): String {
         FloatingTextOverlayHelper.isThinking(true)
         return try {
-            LLMChat.deepseekChat(prompt, true)
+            LLMChat.deepseekChat(prompt, true, imageBytes)
         } finally {
             FloatingTextOverlayHelper.isThinking(false)
         }
-    }
-
-    private fun parseResponse(raw: String): AgentDecision? {
-        return AgentResponseParser.parse(raw)
     }
 
     private fun installManualNextRoundClick(session: AgentSession): Boolean {
@@ -303,14 +337,11 @@ object AgentLoop {
         session: AgentSession,
         currentState: List<ScreenNode>
     ): ActionExecutionResult {
-        if (agentAction == AgentAction.DescribeUi) {
-            return UiDescriptionExecutor.execute()
-        }
         val targetNode = when (agentAction) {
             is AgentAction.Click -> currentState.getOrNull(agentAction.target - 1)
             is AgentAction.Input -> currentState.getOrNull(agentAction.target - 1)
             is AgentAction.Swipe, is AgentAction.LaunchApp, AgentAction.Back,
-            AgentAction.DescribeUi -> null
+            AgentAction.ThinkWithVision -> null
         }
         val executionResult = AccessibilityActionExecutor.execute(agentAction, targetNode, session.goal)
         Log.i(
@@ -322,7 +353,7 @@ object AgentLoop {
             is AgentAction.Click, is AgentAction.Input -> targetNode?.message.orEmpty()
             is AgentAction.Swipe, AgentAction.Back -> ""
             AgentAction.LaunchApp -> executionResult.target
-            AgentAction.DescribeUi -> ""
+            AgentAction.ThinkWithVision -> ""
         }
         return ActionExecutionResult(
             agentAction = agentAction,

@@ -40,8 +40,8 @@ sealed class AgentAction(
         override fun toString(): String = "返回上一页"
     }
 
-    data object DescribeUi : AgentAction("describe_ui") {
-        override fun toString(): String = "描述当前界面"
+    data object ThinkWithVision : AgentAction("think_with_vision") {
+        override fun toString(): String = "请求带视觉信息的一轮决策"
     }
 }
 
@@ -49,7 +49,7 @@ fun JsonDescription(): String{
     return """
 "actions": [
   {
-    "op": "click | input | swipe | launch_app | back | describe_ui",
+    "op": "click | input | swipe | launch_app | back | think_with_vision",
     "target": 2, //可选,操作对象的id
     "text": "Sample Text", //可选,仅 input 使用
     "startPoint": "30-50", //可选,仅 swipe 使用,滑动起点坐标

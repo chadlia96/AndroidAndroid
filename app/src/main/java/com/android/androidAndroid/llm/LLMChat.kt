@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Base64
 import com.android.androidAndroid.logging.AppLogger as Log
 import com.android.androidAndroid.BuildConfig
+import com.android.androidAndroid.util.ImageCompressor
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.JsonValue
 import com.openai.models.chat.completions.ChatCompletionContentPart
@@ -19,8 +20,7 @@ object LLMChat {
     private const val LLM_TRACE_TAG = "LLM_TRACE"
     private const val DEEPSEEK_URL = "https://api.deepseek.com"
     private const val DEEPSEEK_MODEL = "deepseek-v4-flash"
-    private const val MOONSHOT_URL = "https://api.moonshot.cn/v1"
-    private const val MOONSHOT_MODEL = "moonshot-v1-8k-vision-preview"
+    private const val DEEPSEEK_IMAGE_MODEL = "deepseek-flash"
 
     private val deepSeekClient = OpenAIOkHttpClient.builder()
         .apiKey(BuildConfig.DEEPSEEK_API_KEY)
@@ -28,15 +28,11 @@ object LLMChat {
         .maxRetries(3)
         .build()
 
-    private val moonshotClient by lazy {
-        OpenAIOkHttpClient.builder()
-            .apiKey(BuildConfig.MOONSHOT_API_KEY)
-            .baseUrl(MOONSHOT_URL)
-            .maxRetries(3)
-            .build()
-    }
-
-    suspend fun deepseekChat(prompt: String, jsonOutput: Boolean): String {
+    suspend fun deepseekChat(
+        prompt: String,
+        jsonOutput: Boolean,
+        imageBytes: ByteArray? = null
+    ): String {
         Log.d(LLM_TRACE_TAG, "DEEPSEEK_PROMPT(jsonOutput=$jsonOutput):\n$prompt")
         return try {
             val bodyProperties = mutableMapOf(
@@ -48,13 +44,30 @@ object LLMChat {
                 bodyProperties["response_format"] = JsonValue.from(mapOf("type" to "json_object"))
             }
 
-            val response = deepSeekClient.chat().completions().create(
-                ChatCompletionCreateParams.builder()
-                    .model(DEEPSEEK_MODEL)
-                    .addUserMessage(prompt)
-                    .additionalBodyProperties(bodyProperties)
-                    .build()
-            )
+            val request = ChatCompletionCreateParams.builder()
+                .model(DEEPSEEK_MODEL)
+                .additionalBodyProperties(bodyProperties)
+            if (imageBytes == null) {
+                request.addUserMessage(prompt)
+            } else {
+                val jpegBytes = ImageCompressor.compressToJpeg(imageBytes)
+                val imageUrl = "data:image/jpeg;base64,${Base64.encodeToString(jpegBytes, Base64.NO_WRAP)}"
+                val imagePart = ChatCompletionContentPart.ofImageUrl(
+                    ChatCompletionContentPartImage.builder()
+                        .imageUrl(
+                            ChatCompletionContentPartImage.ImageUrl.builder()
+                                .url(imageUrl)
+                                .detail(ChatCompletionContentPartImage.ImageUrl.Detail.of("original"))
+                                .build()
+                        )
+                        .build()
+                )
+                val textPart = ChatCompletionContentPart.ofText(
+                    ChatCompletionContentPartText.builder().text(prompt).build()
+                )
+                request.addUserMessageOfArrayOfContentParts(listOf(textPart, imagePart))
+            }
+            val response = deepSeekClient.chat().completions().create(request.build())
             response.choices().firstOrNull()?.message()?.content()?.orElse(null)
                 ?.takeIf { it.isNotBlank() }
                 ?.also { Log.d(LLM_TRACE_TAG, "DEEPSEEK_RESPONSE:\n$it") }
@@ -66,51 +79,60 @@ object LLMChat {
         }
     }
 
-    suspend fun moonshotReadImage(context: Context, uri: Uri, prompt: String): String {
+    suspend fun deepseekReadImage(context: Context, uri: Uri, prompt: String): String {
         return try {
-            val mimeType = context.contentResolver.getType(uri)?.takeIf { it.isNotBlank() } ?: "image/png"
-            val imageBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                ?: error("无法读取图片内容.")
-            moonshotReadImage(imageBytes, mimeType, prompt)
+            deepseekReadCompressedImage(ImageCompressor.compressUri(context, uri), prompt)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            handleError("Moonshot 图片识别", error)
+            handleError("DeepSeek 图片识别", error)
         }
     }
 
-    suspend fun moonshotReadImage(
+    suspend fun deepseekReadImage(
         imageBytes: ByteArray,
-        mimeType: String,
         prompt: String
     ): String {
-        Log.d(LLM_TRACE_TAG, "MOONSHOT_IMAGE_PROMPT:\n$prompt")
         return try {
-            require(imageBytes.isNotEmpty()) { "图片内容为空." }
-            val imageUrl = "data:$mimeType;base64,${Base64.encodeToString(imageBytes, Base64.NO_WRAP)}"
+            deepseekReadCompressedImage(ImageCompressor.compressToJpeg(imageBytes), prompt)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            handleError("DeepSeek 图片识别", error)
+        }
+    }
+
+    private suspend fun deepseekReadCompressedImage(imageBytes: ByteArray, prompt: String): String {
+        Log.d(LLM_TRACE_TAG, "DEEPSEEK_IMAGE_PROMPT:\n$prompt")
+        return try {
+            val imageUrl = "data:image/jpeg;base64,${Base64.encodeToString(imageBytes, Base64.NO_WRAP)}"
             val imagePart = ChatCompletionContentPart.ofImageUrl(
                 ChatCompletionContentPartImage.builder()
-                    .imageUrl(ChatCompletionContentPartImage.ImageUrl.builder().url(imageUrl).build())
+                    .imageUrl(
+                        ChatCompletionContentPartImage.ImageUrl.builder()
+                            .url(imageUrl)
+                            .detail(ChatCompletionContentPartImage.ImageUrl.Detail.of("original"))
+                            .build()
+                    )
                     .build()
             )
             val textPart = ChatCompletionContentPart.ofText(
                 ChatCompletionContentPartText.builder().text(prompt).build()
             )
-            val response = moonshotClient.chat().completions().create(
+            val response = deepSeekClient.chat().completions().create(
                 ChatCompletionCreateParams.builder()
-                    .model(MOONSHOT_MODEL)
-                    .addSystemMessage("你是 Kimi.")
-                    .addUserMessageOfArrayOfContentParts(listOf(imagePart, textPart))
+                    .model(DEEPSEEK_IMAGE_MODEL)
+                    .addUserMessageOfArrayOfContentParts(listOf(textPart, imagePart))
                     .build()
             )
             response.choices().firstOrNull()?.message()?.content()?.orElse(null)
                 ?.takeIf { it.isNotBlank() }
-                ?.also { Log.d(LLM_TRACE_TAG, "MOONSHOT_IMAGE_RESPONSE:\n$it") }
-                ?: error("Moonshot 返回空响应.")
+                ?.also { Log.d(LLM_TRACE_TAG, "DEEPSEEK_IMAGE_RESPONSE:\n$it") }
+                ?: error("DeepSeek 返回空响应.")
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            handleError("Moonshot 图片识别", error)
+            handleError("DeepSeek 图片识别", error)
         }
     }
 

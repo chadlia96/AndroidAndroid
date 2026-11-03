@@ -114,7 +114,8 @@ object AccessibilityNodeMapper {
             )
 
             matchesClass(className, CLASS_EDIT_TEXT) -> EditTextScreenNode(
-                message = firstNonBlank(text, description) ?: "输入框",
+                message = text.ifBlank { "输入框" },
+                extraMessage = collectInputLabels(node),
                 className = className,
                 clickable = node.isClickable,
                 editable = node.isEditable,
@@ -219,6 +220,31 @@ object AccessibilityNodeMapper {
             .ifBlank { "未提取到可用节点" }
 
         return "==================开始==================\n$content\n==================结束=================="
+    }
+
+    private fun collectInputLabels(node: AccessibilityNodeInfo): String {
+        val labels = linkedSetOf(node.hintText.easyTrim(), node.contentDescription.easyTrim())
+
+        // 只收集输入框内部的非交互标签,跳过国家选择器等独立控件及其子树.
+        fun collectChildren(parent: AccessibilityNodeInfo, depth: Int) {
+            if (depth >= INPUT_LABEL_MAX_DEPTH) return
+            for (index in 0 until parent.childCount) {
+                val child = parent.getChild(index) ?: continue
+                try {
+                    if (hasInteraction(child)) continue
+                    labels.add(child.hintText.easyTrim())
+                    labels.add(child.contentDescription.easyTrim())
+                    labels.add(child.text.easyTrim())
+                    collectChildren(child, depth + 1)
+                } finally {
+                    child.recycle()
+                }
+            }
+        }
+
+        collectChildren(node, 0)
+        val text = node.text.easyTrim()
+        return labels.filter { it.isNotBlank() && it != text }.joinToString(", ")
     }
 
     private fun findFirstUsefulTextInChildren(node: AccessibilityNodeInfo): String? {
@@ -341,6 +367,7 @@ object AccessibilityNodeMapper {
     private const val CLASS_SEEK_BAR = "SeekBar"
     private const val CLASS_WEB_VIEW = "WebView"
     private const val MAX_DUMP_DEPTH = 12
+    private const val INPUT_LABEL_MAX_DEPTH = 4
 
     private val ATOMIC_CONTROL_CLASS_KEYWORDS = listOf(
         CLASS_CHECK_BOX,

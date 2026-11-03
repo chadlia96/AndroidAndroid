@@ -44,7 +44,7 @@ object ScreenStatRenderer {
             .takeIf { it.isNotBlank() && it != node.message }
             ?.let(::normalizeContentPart)
         val content = when {
-            !message.isNullOrBlank() && !extraMessage.isNullOrBlank() -> "$message, $extraMessage"
+            !message.isNullOrBlank() && !extraMessage.isNullOrBlank() -> "$message, [$extraMessage]"
             !message.isNullOrBlank() -> message
             !extraMessage.isNullOrBlank() -> extraMessage
             else -> return "-"

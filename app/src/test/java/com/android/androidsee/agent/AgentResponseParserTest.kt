@@ -93,14 +93,36 @@ class AgentResponseParserTest {
     }
 
     @Test
-    fun parse_describeUiAction() {
-        val json = """{"status": "running", "actions": [{"op": "describe_ui"}]}"""
+    fun parse_thinkWithVisionAction() {
+        val json = """{"status": "running", "actions": [{"op": "think_with_vision"}]}"""
 
         val result = AgentResponseParser.parse(json)
 
         assertNotNull(result)
         assertEquals(1, result!!.agentActions.size)
-        assertEquals(AgentAction.DescribeUi, result.agentActions[0])
+        assertEquals(AgentAction.ThinkWithVision, result.agentActions[0])
+    }
+
+    @Test
+    fun parse_rejectsRepeatedVisionRequestEvenAlongsideOtherActions() {
+        val json = """{"status":"running","actions":[{"op":"back"},{"op":"think_with_vision"}]}"""
+
+        assertNull(AgentResponseParser.parse(json, allowThinkWithVision = false))
+    }
+
+    @Test
+    fun parse_visionRoundAllowsNormalActionsAndSuccess() {
+        val action = AgentResponseParser.parse(
+            """{"status":"running","actions":[{"op":"back"}]}""",
+            allowThinkWithVision = false
+        )
+        assertEquals(AgentAction.Back, action!!.agentActions.single())
+        val success = AgentResponseParser.parse(
+            """{"status":"success","actions":[]}""",
+            allowThinkWithVision = false
+        )
+        assertEquals("success", success!!.status)
+        assertTrue(success.agentActions.isEmpty())
     }
 
     @Test

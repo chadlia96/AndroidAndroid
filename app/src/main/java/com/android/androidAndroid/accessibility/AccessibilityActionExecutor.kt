@@ -29,7 +29,7 @@ object AccessibilityActionExecutor {
             is AgentAction.Swipe -> executeSwipe(agentAction)
             AgentAction.Back -> executeBack()
             AgentAction.LaunchApp -> executeLaunchApp(goal)
-            AgentAction.DescribeUi -> NodeActionExecutionResult(false, "UI视觉探测应由 AgentLoop 执行")
+            AgentAction.ThinkWithVision -> NodeActionExecutionResult(false, "视觉决策请求应由 AgentLoop 处理")
         }
     }
 
