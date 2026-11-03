@@ -3,4 +3,11 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="chatTextColor">#1A237E</color>
+    <color name="brand_primary">#4558A5</color>
+    <color name="brand_on_primary">#FFFFFFFF</color>
+    <color name="brand_secondary">#00897B</color>
+    <color name="brand_on_secondary">#FFFFFFFF</color>
+    <color name="brand_tertiary">#C05A3C</color>
+    <color name="brand_surface">#FFFDFC</color>
+    <color name="brand_on_surface">#202124</color>
 </resources>

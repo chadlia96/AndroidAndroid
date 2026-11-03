@@ -185,7 +185,6 @@ object AgentLoop {
         )
         TaskWatcher.onLLMRequest()
         val rawResponse = queryRawResponse(prompt, imageBytes)
-        TaskWatcher.onLLMResponse(rawResponse)
         context.response = AgentResponseParser.parse(rawResponse, context.allowThinkWithVision)
         context.session.messages.add(rawResponse)
         Log.i(
@@ -209,6 +208,7 @@ object AgentLoop {
         }
 
         context.session.metadata["last_reason"] = context.response?.reason.orEmpty()
+        TaskWatcher.onLLMResponse(context.response?.reason ?:"Request Failed!!")
         if (!context.response?.reason.isNullOrBlank() && imageBytes != null) {
             context.session.actionExecutionResults.add(
                 ActionExecutionResult(AgentAction.ThinkWithVision, "", true,
