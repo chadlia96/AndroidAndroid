@@ -9,6 +9,14 @@ import androidx.lifecycle.viewModelScope
 import com.android.androidAndroid.accessibility.NERV
 import com.android.androidAndroid.llm.LLMChat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -16,10 +24,10 @@ import java.util.Locale
 
 class ChatViewModel : ViewModel() {
 
-    private val entriesState = MutableLiveData(mutableListOf<ChatMessage>())
+    private val entriesState = MutableStateFlow<List<ChatMessage>>(emptyList())
     private val selectedImageUriState = MutableLiveData<Uri?>(null)
 
-    val entries: LiveData<MutableList<ChatMessage>> = entriesState
+    val entries = entriesState.asStateFlow()
     val selectedImageUri: LiveData<Uri?> = selectedImageUriState
 
     var entryMode: Int = ENTRY_MODE_AGENT_LOOP
@@ -46,47 +54,43 @@ class ChatViewModel : ViewModel() {
             )
         )
 
-        if (entryMode == ENTRY_MODE_JUST_TALK) {
+        val replies = if (entryMode == ENTRY_MODE_JUST_TALK) {
             launchSimpleChatReply(context.applicationContext, normalizedInput, imageUri)
         } else {
             launchAgentLoopReply(normalizedInput)
-            selectedImageUriState.value = null
+        }
+        selectedImageUriState.value = null
+        viewModelScope.launch {
+            replies.catch { error ->
+                emit("调用失败: ${error.message.orEmpty()}")
+            }.collect { message ->
+                appendEntry(ChatMessage(message = message, mode = 1, time = nowTimeText()))
+            }
         }
 
         return true
     }
 
     private fun appendEntry(entry: ChatMessage) {
-        val entries = entriesState.value ?: mutableListOf()
-        entries.add(entry)
-        entriesState.postValue(entries)
+        entriesState.update { it + entry }
     }
 
-    private fun launchAgentLoopReply(message: String) {
-        NERV.submitUserInput(message)
+    private fun launchAgentLoopReply(message: String): Flow<String> {
+        return NERV.submitUserInput(message)
     }
 
     private fun launchSimpleChatReply(
         context: Context,
         message: String,
         imageUri: Uri?
-    ) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = if (imageUri != null) {
-                LLMChat.deepseekReadImage(context, imageUri, message.trim().ifBlank{ "请形容图片内容" })
-            } else {
-                LLMChat.deepseekChat(message, false)
-            }
-            selectedImageUriState.postValue(null)
-            appendEntry(
-                ChatMessage(
-                    message = result,
-                    mode = 1,
-                    time = nowTimeText()
-                )
-            )
+    ): Flow<String> = flow {
+        val result = if (imageUri != null) {
+            LLMChat.deepseekReadImage(context, imageUri, message.trim().ifBlank { "请形容图片内容" })
+        } else {
+            LLMChat.deepseekChat(message, false)
         }
-    }
+        emit(result)
+    }.flowOn(Dispatchers.IO)
 
     val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     fun nowTimeText(): String {

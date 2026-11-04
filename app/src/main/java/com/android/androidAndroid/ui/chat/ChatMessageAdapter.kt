@@ -21,13 +21,18 @@ import com.android.androidAndroid.R
  * - 将气泡宽度限制为屏幕宽度的 80%，保持类似聊天界面的视觉层次。
  *
  * 数据约定：
- * - `entries` 由外部（`ChatFragment`）维护并增量通知（`notifyEntryInserted`）。
+ * - `entries` 由外部通过 `submitEntries` 提交完整列表.
  * - 本 Adapter 不持有业务状态，只负责将当前数据映射到视图。
  */
 
 class ChatMessageAdapter(
-    private val entries: List<ChatMessage>
+    private var entries: List<ChatMessage>
 ) : RecyclerView.Adapter<ChatMessageAdapter.EntryViewHolder>() {
+
+    fun submitEntries(entries: List<ChatMessage>) {
+        this.entries = entries
+        notifyDataSetChanged()
+    }
 
     fun notifyEntryInserted(position: Int) {
         notifyItemInserted(position)

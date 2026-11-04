@@ -19,11 +19,16 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.android.androidAndroid.R
 import com.android.androidAndroid.accessibility.NERV
 import com.android.androidAndroid.agent.AgentLoop
 import com.android.androidAndroid.databinding.FragmentChatBinding
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 /**
  * Chat 页面主控制器（对话 + 任务执行）。
@@ -46,7 +51,7 @@ class ChatFragment : Fragment() {
     private val viewModel by lazy { ViewModelProvider(this)[ChatViewModel::class.java] }
     private val baseBottomMarginDp = 10
     private val entryAdapter by lazy {
-        ChatMessageAdapter(viewModel.entries.value ?: mutableListOf())
+        ChatMessageAdapter(viewModel.entries.value)
     }
     private var previewPopupWindow: PopupWindow? = null
     private val imagePickerLauncher =
@@ -131,10 +136,14 @@ class ChatFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewModel.entries.observe(viewLifecycleOwner) {
-            entryAdapter.notifyDataSetChanged()
-            if (it.isNotEmpty()) {
-                binding.recyclerViewEntries.scrollToPosition(it.lastIndex)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.entries.collect { entries ->
+                    entryAdapter.submitEntries(entries)
+                    if (entries.isNotEmpty()) {
+                        binding.recyclerViewEntries.scrollToPosition(entries.lastIndex)
+                    }
+                }
             }
         }
         viewModel.selectedImageUri.observe(viewLifecycleOwner) { uri ->
